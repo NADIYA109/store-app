@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Item</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!--Navigation Menu -->
+<div>
+    <a href="/item">Add Item</a> |
+    <a href="/inventory">Add Inventory</a> |
+    <a href="/purchase">New Purchase</a> |
+    <a href="/shipping">Add Shipping</a> |
+    <a href="/display">View All Data</a>
+</div>
+<hr>
+
+<h2>Edit Item</h2>
+
+<!--Show Error Message (if any) -->
+{% if error %}
+  <p style="color: red;"><strong>{{ error }}</strong></p>
+{% endif %}
+
+<!--Edit Form -->
+<form method="POST">
+    <label>Item Name:</label>
+    <input type="text" name="name" value="{{ item[1] }}" required><br><br>
+
+    <label>Item Type:</label>
+    <input type="text" name="type" value="{{ item[2] }}" required><br><br>
+
+    <label>Price:</label>
+    <input type="number" name="price" step="0.01" value="{{ item[3] }}" required><br><br>
+
+    <button type="submit">Update Item</button>
+</form>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>New Purchase</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!--Navigation Menu -->
+<div>
+    <a href="/item">Add Item</a> |
+    <a href="/inventory">Add Inventory</a> |
+    <a href="/purchase">New Purchase</a> |
+    <a href="/shipping">Add Shipping</a> |
+    <a href="/display">View All Data</a>
+</div>
+<hr>
+
+<h2>New Purchase</h2>
+{% if error %}
+  <p style="color: red;"><strong>{{ error }}</strong></p>
+{% endif %}
+{% if success %}
+  <p style="color: green;"><strong>{{ success }}</strong></p>
+{% endif %}
+
+<form method="POST">
+    {% for id, name in items %}
+    <label>{{ name }}:</label>
+    <input type="checkbox" name="item_id" value="{{ id }}">
+    <input type="number" name="quantity" placeholder="Quantity"><br><br>
+    {% endfor %}
+    <button type="submit">Submit Purchase</button>
+</form>
+
+<hr>
+
+<h2>Purchase Records</h2>
+<table border="1">
+    <tr>
+        <th>Purchase ID</th>
+        <th>Date</th>
+        <th>Actions</th>
+    </tr>
+    {% for p in purchases %}
+    <tr>
+        <td>{{ p[0] }}</td>
+        <td>{{ p[1] }}</td>
+        <td>
+            <a href="/purchase/edit/{{ p[0] }}">Edit</a> |
+            <a href="/purchase/delete/{{ p[0] }}" onclick="return confirm('Are you sure?')">Delete</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

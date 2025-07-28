@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Inventory</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!--Navigation Menu -->
+<div>
+    <a href="/item">Add Item</a> |
+    <a href="/inventory">Add Inventory</a> |
+    <a href="/purchase">New Purchase</a> |
+    <a href="/shipping">Add Shipping</a> |
+    <a href="/display">View All Data</a>
+</div>
+<hr>
+
+<h2>Edit Inventory</h2>
+
+{% if error %}
+  <p style="color: red;"><strong>{{ error }}</strong></p>
+{% endif %}
+
+<form method="POST">
+    <label>Item:</label>
+    <select name="item_id" required>
+        {% for id, name in items %}
+        <option value="{{ id }}" {% if id == current_item[1] %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+    </select><br><br>
+
+    <label>Quantity:</label>
+    <input type="number" name="quantity" value="{{ current_item[2] }}" required><br><br>
+
+    <button type="submit">Update Inventory</button>
+</form>
+
+</body>
+</html>

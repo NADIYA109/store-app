@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Shipping</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!--Navigation Menu -->
+<div>
+    <a href="/item">Add Item</a> |
+    <a href="/inventory">Add Inventory</a> |
+    <a href="/purchase">New Purchase</a> |
+    <a href="/shipping">Add Shipping</a> |
+    <a href="/display">View All Data</a>
+</div>
+<hr>
+
+<h2>Edit Shipping Info</h2>
+{% if error %}
+  <p style="color: red;"><strong>{{ error }}</strong></p>
+{% endif %}
+
+
+<form method="POST">
+    <label>Purchase ID:</label>
+    <select name="purchase_id" required>
+        {% for pid in purchases %}
+        <option value="{{ pid[0] }}" {% if pid[0] == shipping[1] %}selected{% endif %}>{{ pid[0] }}</option>
+        {% endfor %}
+    </select><br><br>
+
+    <label>Address:</label>
+    <input type="text" name="address" value="{{ shipping[2] }}" required><br><br>
+
+    <label>Status:</label>
+    <input type="text" name="status" value="{{ shipping[3] }}" required><br><br>
+
+    <button type="submit">Update Shipping</button>
+</form>
+
+</body>
+</html>
