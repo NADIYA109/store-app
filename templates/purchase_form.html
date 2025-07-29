@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>New Purchase</title>
+    <title>Purchase</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<!--Navigation Menu -->
+<!--Navigation -->
 <div>
     <a href="/item">Add Item</a> |
     <a href="/inventory">Add Inventory</a> |
@@ -15,40 +15,66 @@
     <a href="/display">View All Data</a>
 </div>
 <hr>
-
 <h2>New Purchase</h2>
-{% if error %}
-  <p style="color: red;"><strong>{{ error }}</strong></p>
-{% endif %}
-{% if success %}
-  <p style="color: green;"><strong>{{ success }}</strong></p>
-{% endif %}
+
+<!-- Show messages -->
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+{% if success %}<p style="color:green">{{ success }}</p>{% endif %}
 
 <form method="POST">
-    {% for id, name in items %}
-    <label>{{ name }}:</label>
-    <input type="checkbox" name="item_id" value="{{ id }}">
-    <input type="number" name="quantity" placeholder="Quantity"><br><br>
-    {% endfor %}
+    <div id="item-container">
+        <div class="item-row">
+            <label>Item:</label>
+            <select name="item_id">
+                {% for item in items %}
+                <option value="{{ item[0] }}">{{ item[1] }}</option>
+                {% endfor %}
+            </select>
+            <label>Quantity:</label>
+            <input type="number" name="quantity" min="1" required>
+        </div>
+    </div>
+    <br>
+    <button type="button" onclick="addItemRow()">Add Another Item</button><br><br>
     <button type="submit">Submit Purchase</button>
 </form>
 
-<hr>
+<script>
+function addItemRow() {
+    let container = document.getElementById("item-container");
+    let row = document.createElement("div");
+    row.className = "item-row";
 
-<h2>Purchase Records</h2>
+    row.innerHTML = `
+        <label>Item:</label>
+        <select name="item_id">
+            {% for item in items %}
+            <option value="{{ item[0] }}">{{ item[1] }}</option>
+            {% endfor %}
+        </select>
+        <label>Quantity:</label>
+        <input type="number" name="quantity" min="1" required>
+    `;
+
+    container.appendChild(row);
+}
+</script>
+
+<hr>
+<h2>All Purchases</h2>
 <table border="1">
     <tr>
         <th>Purchase ID</th>
-        <th>Date</th>
+        <th>Purchase Date</th>
         <th>Actions</th>
     </tr>
-    {% for p in purchases %}
+    {% for purchase in purchases %}
     <tr>
-        <td>{{ p[0] }}</td>
-        <td>{{ p[1] }}</td>
+        <td>{{ purchase[0] }}</td>
+        <td>{{ purchase[1] }}</td>
         <td>
-            <a href="/purchase/edit/{{ p[0] }}">Edit</a> |
-            <a href="/purchase/delete/{{ p[0] }}" onclick="return confirm('Are you sure?')">Delete</a>
+            <a href="/purchase/edit/{{ purchase[0] }}">Edit</a> |
+            <a href="/purchase/delete/{{ purchase[0] }}" onclick="return confirm('Delete this purchase?')">Delete</a>
         </td>
     </tr>
     {% endfor %}

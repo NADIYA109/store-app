@@ -32,7 +32,7 @@
     <input type="text" name="type" value="{{ item[2] }}" required><br><br>
 
     <label>Price:</label>
-    <input type="number" name="price" step="0.01" value="{{ item[3] }}" required><br><br>
+    <input type="number" name="price" min="1" step="0.01" value="{{ item[3] }}" required><br><br>
 
     <button type="submit">Update Item</button>
 </form>

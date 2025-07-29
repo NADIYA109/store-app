@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Add Inventory</title>
+    <title>Inventory</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<!--Navigation Menu -->
+<!-- Navigation -->
 <div>
     <a href="/item">Add Item</a> |
     <a href="/inventory">Add Inventory</a> |
@@ -15,33 +15,24 @@
     <a href="/display">View All Data</a>
 </div>
 <hr>
-
 <h2>Add Inventory</h2>
-
-{% if error %}
-  <p style="color: red;"><strong>{{ error }}</strong></p>
-{% endif %}
-{% if success %}
-  <p style="color: green;"><strong>{{ success }}</strong></p>
-{% endif %}
 
 <form method="POST">
     <label>Item:</label>
-    <select name="item_id" required>
-        {% for id, name in items %}
-        <option value="{{ id }}">{{ name }}</option>
+    <select name="item_id">
+        {% for item in items %}
+        <option value="{{ item[0] }}">{{ item[1] }}</option>
         {% endfor %}
     </select><br><br>
 
-    <label>Quantity:</label>
-    <input type="number" name="quantity" required><br><br>
+    <label>Quantity Available:</label>
+    <input type="number" name="quantity" min="1" required><br><br>
 
     <button type="submit">Add Inventory</button>
 </form>
 
 <hr>
-
-<h2>Inventory List</h2>
+<h2>All Inventory</h2>
 <table border="1">
     <tr>
         <th>ID</th>
@@ -49,14 +40,14 @@
         <th>Quantity Available</th>
         <th>Actions</th>
     </tr>
-    {% for inv in inventory %}
+    {% for row in inventory %}
     <tr>
-        <td>{{ inv[0] }}</td>
-        <td>{{ inv[1] }}</td>
-        <td>{{ inv[2] }}</td>
+        <td>{{ row[0] }}</td>
+        <td>{{ row[1] }}</td>
+        <td>{{ row[2] }}</td>
         <td>
-            <a href="/inventory/edit/{{ inv[0] }}">Edit</a> |
-            <a href="/inventory/delete/{{ inv[0] }}" onclick="return confirm('Are you sure?')">Delete</a>
+            <a href="/inventory/edit/{{ row[0] }}">Edit</a> |
+            <a href="/inventory/delete/{{ row[0] }}" onclick="return confirm('Delete this inventory entry?')">Delete</a>
         </td>
     </tr>
     {% endfor %}

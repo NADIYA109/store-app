@@ -73,10 +73,24 @@ def edit_item(item_id):
 @app.route('/item/delete/<int:item_id>')
 def delete_item(item_id):
     cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM items WHERE item_id = %s", (item_id,))
-    mysql.connection.commit()
-    cur.close()
+    try:
+        # Step 1: Delete from purchase_items where this item is used
+        cur.execute("DELETE FROM purchase_items WHERE item_id = %s", (item_id,))
+
+        # Step 2: Delete from inventory where this item is stored
+        cur.execute("DELETE FROM inventory WHERE item_id = %s", (item_id,))
+
+        # Step 3: Now delete from items table
+        cur.execute("DELETE FROM items WHERE item_id = %s", (item_id,))
+        
+        mysql.connection.commit()
+    except Exception as e:
+        mysql.connection.rollback()
+        return f"Error while deleting item: {str(e)}"
+    finally:
+        cur.close()
     return redirect('/item')
+
 
 
 
@@ -173,7 +187,7 @@ def delete_inventory(inventory_id):
 
 
 
-# Add Purchase
+# Add Purchase with inventory update
 from datetime import date
 @app.route('/purchase', methods=['GET', 'POST'])
 def purchase():
@@ -181,7 +195,6 @@ def purchase():
     success = None
     cur = mysql.connection.cursor()
 
-    # Get all items for form dropdown
     cur.execute("SELECT item_id, name FROM items")
     items = cur.fetchall()
 
@@ -189,42 +202,42 @@ def purchase():
         item_ids = request.form.getlist('item_id')
         quantities = request.form.getlist('quantity')
 
-        # Backend Validation
         if not item_ids or not quantities or len(item_ids) != len(quantities):
             error = "Please select items and provide quantities."
         else:
             try:
-                # Insert into purchase table
+                for item_id, qty in zip(item_ids, quantities):
+                    if not item_id or not qty:
+                        raise Exception("All selected items must have quantity.")
+                    qty_int = int(qty)
+                    if qty_int <= 0:
+                        raise Exception("Quantity must be a positive number.")
+                    cur.execute("SELECT i.name, iv.quantity_available FROM items i LEFT JOIN inventory iv ON i.item_id = iv.item_id WHERE i.item_id = %s", (item_id,))
+                    result = cur.fetchone()
+                    if not result or qty_int > result[1]:
+                        raise Exception(f"Only {result[1]} '{result[0]}' in stock. Please adjust quantity.")
                 cur.execute("INSERT INTO purchase (purchase_date) VALUES (%s)", (date.today(),))
                 purchase_id = cur.lastrowid
 
                 for item_id, qty in zip(item_ids, quantities):
-                    if not item_id or not qty:
-                        raise Exception("All selected items must have quantity.")
-
                     qty_int = int(qty)
-                    if qty_int <= 0:
-                        raise Exception("Quantity must be a positive number.")
-
-                    # Insert into purchase_items
                     cur.execute(
                         "INSERT INTO purchase_items (purchase_id, item_id, quantity) VALUES (%s, %s, %s)",
                         (purchase_id, item_id, qty_int)
                     )
+                    cur.execute("UPDATE inventory SET quantity_available = quantity_available - %s WHERE item_id = %s",
+                                (qty_int, item_id))
 
                 mysql.connection.commit()
-                success = "Purchase saved successfully!"
+                success = "Purchase saved successfully and inventory updated!"
             except Exception as e:
                 mysql.connection.rollback()
                 error = f"Something went wrong: {str(e)}"
 
-    # Fetch all purchases to show below form
     cur.execute("SELECT purchase_id, purchase_date FROM purchase")
     purchases = cur.fetchall()
     cur.close()
     return render_template('purchase_form.html', items=items, purchases=purchases, error=error, success=success)
-
-
 
 # Edit Purchase
 @app.route('/purchase/edit/<int:purchase_id>', methods=['GET', 'POST'])
@@ -238,63 +251,97 @@ def edit_purchase(purchase_id):
         quantities = request.form.getlist('quantity')
 
         if not item_ids or not quantities or len(item_ids) != len(quantities):
-            error = "Please select at least one item and provide all quantities."
+            error = "Please select at least one item and provide valid quantities."
         else:
             try:
+                stock_errors = []
+
+                # Reverse the previous purchase from inventory
+                cur.execute("SELECT item_id, quantity FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+                previous_items = cur.fetchall()
+                for item_id, qty in previous_items:
+                    cur.execute("UPDATE inventory SET quantity_available = quantity_available + %s WHERE item_id = %s", (qty, item_id))
+
                 # Delete old purchase_items first
                 cur.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
 
+                # Validate all new entries before making changes
+                validated_items = []
                 for item_id, qty in zip(item_ids, quantities):
-                    if not item_id or not qty:
-                        raise Exception("All selected items must have quantity.")
-                    qty_int = int(qty)
-                    if qty_int <= 0:
-                        raise Exception("Quantity must be a positive number.")
+                    if item_id and qty:
+                        qty_int = int(qty)
+                        if qty_int <= 0:
+                            stock_errors.append("Quantity must be a positive number.")
+                            continue
 
+                        # Check available stock
+                        cur.execute("""
+                            SELECT i.name, COALESCE(iv.quantity_available, 0)
+                            FROM items i
+                            LEFT JOIN inventory iv ON i.item_id = iv.item_id
+                            WHERE i.item_id = %s
+                        """, (item_id,))
+                        result = cur.fetchone()
+
+                        if not result:
+                            stock_errors.append(f"Item ID {item_id} not found.")
+                        elif qty_int > result[1]:
+                            stock_errors.append(f"Only {result[1]} '{result[0]}' in stock.")
+
+                        validated_items.append((item_id, qty_int))
+
+                if stock_errors:
+                    raise Exception(" | ".join(stock_errors))
+
+                # If all good then insert new records
+                for item_id, qty_int in validated_items:
                     cur.execute("""
                         INSERT INTO purchase_items (purchase_id, item_id, quantity)
                         VALUES (%s, %s, %s)
                     """, (purchase_id, item_id, qty_int))
 
+                    cur.execute("UPDATE inventory SET quantity_available = quantity_available - %s WHERE item_id = %s",
+                                (qty_int, item_id))
+
                 mysql.connection.commit()
                 success = "Purchase updated successfully!"
                 return redirect('/purchase')
+
             except Exception as e:
                 mysql.connection.rollback()
                 error = f"Update failed: {str(e)}"
 
-    # GET request → fetch all item list
+    # GET → fetch all items
     cur.execute("SELECT item_id, name FROM items")
     items = cur.fetchall()
 
     # fetch existing purchase items
-    cur.execute("""
-        SELECT item_id, quantity FROM purchase_items
-        WHERE purchase_id = %s
-    """, (purchase_id,))
+    cur.execute("SELECT item_id, quantity FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
     purchase_items = cur.fetchall()
-
-    # convert to dict: { item_id: quantity }
     selected_items = {item[0]: item[1] for item in purchase_items}
-    cur.close()
 
+    cur.close()
     return render_template("edit_purchase.html", items=items, selected_items=selected_items, error=error)
 
 
-#Delete Purchase
+# Delete Purchase with inventory restore
 @app.route('/purchase/delete/<int:purchase_id>')
 def delete_purchase(purchase_id):
     cur = mysql.connection.cursor()
 
-    # delete from child table first
+    cur.execute("SELECT item_id, quantity FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+    items_to_restore = cur.fetchall()
+    for item_id, qty in items_to_restore:
+        cur.execute("UPDATE inventory SET quantity_available = quantity_available + %s WHERE item_id = %s",
+                    (qty, item_id))
+
     cur.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
     cur.execute("DELETE FROM shipping WHERE purchase_id = %s", (purchase_id,))
     cur.execute("DELETE FROM purchase WHERE purchase_id = %s", (purchase_id,))
-    
+
     mysql.connection.commit()
     cur.close()
     return redirect('/purchase')
-
 
 
 # Add Shipping
@@ -329,7 +376,6 @@ def shipping():
     shipping = cur.fetchall()
     cur.close()
     return render_template('shipping_form.html', purchases=purchases, shipping=shipping, error=error, success=success)
-
 
 
 # Edit Shipping
@@ -379,7 +425,7 @@ def delete_shipping(shipping_id):
     return redirect('/shipping')
 
 
-# Display Data
+# Display Data 
 @app.route('/display')
 def display():
     cur = mysql.connection.cursor()
@@ -390,16 +436,23 @@ def display():
             i.price,
             pi.quantity,
             p.purchase_date,
-            s.address,
-            s.status
+            COALESCE(s.address, '-') AS address,
+            COALESCE(s.status, '-') AS status
         FROM purchase_items pi
         JOIN items i ON pi.item_id = i.item_id
         JOIN purchase p ON pi.purchase_id = p.purchase_id
-        LEFT JOIN shipping s ON p.purchase_id = s.purchase_id
+        LEFT JOIN shipping s 
+            ON s.purchase_id = p.purchase_id
+            AND s.shipping_id = (
+                SELECT MIN(shipping_id) 
+                FROM shipping 
+                WHERE purchase_id = p.purchase_id
+            )
     """)
     data = cur.fetchall()
     cur.close()
     return render_template('display.html', data=data)
+
 
 # Run App
 if __name__ == '__main__':
