@@ -36,9 +36,9 @@ Database: MySQL
 
 4. Set up MySQL Database
 
-.Create a database in MySQL (e.g., store_db)
+  .Create a database in MySQL (e.g., store_db)
 
-.Import the models.sql file to create tables
+  .Import the models.sql file to create tables
 
 5. Update your DB config in app.py
 
